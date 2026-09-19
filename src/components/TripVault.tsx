@@ -9,8 +9,6 @@ import {
   Trash2,
   X,
   Inbox,
-  Lock,
-  Crown,
 } from 'lucide-react';
 
 import {
@@ -19,7 +17,6 @@ import {
   getDocs,
   deleteDoc,
   doc,
-  getDoc,
   query,
   where,
 } from 'firebase/firestore';
@@ -59,14 +56,6 @@ const categoryConfig = {
 
 type Category = SavedPlace['category'];
 
-type Plan = 'free' | 'monthly' | 'annual' | 'lifetime';
-
-const premiumPlans: Plan[] = [
-  'monthly',
-  'annual',
-  'lifetime',
-];
-
 export function TripVault() {
   const { theme } = useTheme();
   const { t } = useLanguage();
@@ -74,8 +63,6 @@ export function TripVault() {
 
   const [places, setPlaces] = useState<SavedPlace[]>([]);
   const [loading, setLoading] = useState(true);
-  const [planLoading, setPlanLoading] = useState(true);
-  const [plan, setPlan] = useState<Plan>('free');
   const [showForm, setShowForm] = useState(false);
   const [filter, setFilter] = useState<Category | null>(null);
 
@@ -87,62 +74,6 @@ export function TripVault() {
     notes: '',
   });
 
-  const isPremium = premiumPlans.includes(plan);
-
-  /*
-   * قراءة خطة المستخدم من Firestore.
-   *
-   * مهم:
-   * - لا نعتمد على بيانات موجودة في localStorage.
-   * - لا نعتمد على قيمة يرسلها المستخدم من الواجهة.
-   * - الخطة تأتي من users/{uid}.
-   */
-  const loadPlan = useCallback(async () => {
-    if (!user) {
-      setPlan('free');
-      setPlanLoading(false);
-      return;
-    }
-
-    setPlanLoading(true);
-
-    try {
-      const userRef = doc(db, 'users', user.uid);
-      const userSnapshot = await getDoc(userRef);
-
-      if (!userSnapshot.exists()) {
-        setPlan('free');
-        return;
-      }
-
-      const data = userSnapshot.data();
-      const currentPlan = data.plan;
-
-      if (
-        currentPlan === 'monthly' ||
-        currentPlan === 'annual' ||
-        currentPlan === 'lifetime'
-      ) {
-        setPlan(currentPlan);
-      } else {
-        setPlan('free');
-      }
-
-      console.log('TripVault plan:', {
-        uid: user.uid,
-        plan: currentPlan ?? 'free',
-      });
-    } catch (error) {
-      console.error('Error loading user plan:', error);
-      setPlan('free');
-    } finally {
-      setPlanLoading(false);
-    }
-  }, [user]);
-
-  /*
-   * تحميل بيانات Trip Vault الخاصة بالمستخدم الحالي فقط.
-   */
   const loadPlaces = useCallback(async () => {
     if (!user) {
       setPlaces([]);
@@ -150,34 +81,18 @@ export function TripVault() {
       return;
     }
 
-    /*
-     * لا نحمل بيانات Trip Vault للمستخدم المجاني.
-     */
-    if (!isPremium) {
-      setPlaces([]);
-      setLoading(false);
-      return;
-    }
-
     setLoading(true);
-    setPlaces([]);
 
     try {
-      const placesRef = collection(db, 'saved_places');
-
       const placesQuery = query(
-        placesRef,
+        collection(db, 'saved_places'),
         where('userId', '==', user.uid)
       );
 
       const snapshot = await getDocs(placesQuery);
 
       const loadedPlaces: SavedPlace[] = snapshot.docs
-        .filter((item) => {
-          const data = item.data();
-
-          return data.userId === user.uid;
-        })
+        .filter((item) => item.data().userId === user.uid)
         .map((item) => {
           const data = item.data();
 
@@ -201,52 +116,20 @@ export function TripVault() {
       );
 
       setPlaces(loadedPlaces);
-
-      console.log('TripVault current user:', {
-        uid: user.uid,
-        email: user.email,
-        plan,
-        documentsLoaded: loadedPlaces.length,
-      });
     } catch (error) {
       console.error('Error loading places:', error);
       setPlaces([]);
     } finally {
       setLoading(false);
     }
-  }, [user, isPremium, plan]);
+  }, [user]);
 
-  /*
-   * تحميل الخطة عند تسجيل الدخول أو تغيير الحساب.
-   */
   useEffect(() => {
-    loadPlan();
-  }, [loadPlan]);
-
-  /*
-   * تحميل Trip Vault بعد معرفة الخطة.
-   */
-  useEffect(() => {
-    if (!planLoading) {
-      loadPlaces();
-    }
-  }, [planLoading, loadPlaces]);
+    loadPlaces();
+  }, [loadPlaces]);
 
   const handleAdd = async () => {
-    /*
-     * حماية إضافية:
-     * لا يمكن للحساب المجاني إنشاء عنصر Premium.
-     */
-    if (!user || !isPremium) {
-      console.error(
-        'TripVault add blocked: Premium plan required.'
-      );
-      return;
-    }
-
-    if (!form.name.trim()) {
-      return;
-    }
+    if (!user || !form.name.trim()) return;
 
     try {
       const placeData = {
@@ -282,9 +165,7 @@ export function TripVault() {
         created_at: placeData.created_at,
       };
 
-      if (user.uid === placeData.userId) {
-        setPlaces((prev) => [newPlace, ...prev]);
-      }
+      setPlaces((prev) => [newPlace, ...prev]);
 
       setForm({
         name: '',
@@ -301,15 +182,11 @@ export function TripVault() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!user || !isPremium) {
-      return;
-    }
+    if (!user) return;
 
     try {
-      const placesRef = collection(db, 'saved_places');
-
       const ownershipQuery = query(
-        placesRef,
+        collection(db, 'saved_places'),
         where('userId', '==', user.uid)
       );
 
@@ -321,16 +198,9 @@ export function TripVault() {
           item.data().userId === user.uid
       );
 
-      if (!ownedDocument) {
-        console.error(
-          'Delete blocked: this document does not belong to the current user.'
-        );
-        return;
-      }
+      if (!ownedDocument) return;
 
-      await deleteDoc(
-        doc(db, 'saved_places', id)
-      );
+      await deleteDoc(doc(db, 'saved_places', id));
 
       setPlaces((prev) =>
         prev.filter((place) => place.id !== id)
@@ -354,118 +224,6 @@ export function TripVault() {
     { id: 'place', labelKey: 'vault.place' },
   ];
 
-  /*
-   * انتظار قراءة خطة الحساب.
-   */
-  if (planLoading) {
-    return (
-      <section
-        id="vault"
-        className={`py-20 ${
-          theme === 'dark'
-            ? 'bg-slate-950'
-            : 'bg-white'
-        }`}
-      >
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div
-            className={`rounded-2xl p-10 text-center border ${
-              theme === 'dark'
-                ? 'bg-slate-900 border-slate-800 text-slate-400'
-                : 'bg-slate-50 border-slate-200 text-slate-500'
-            }`}
-          >
-            Loading...
-          </div>
-        </div>
-      </section>
-    );
-  }
-
-  /*
-   * Premium Lock Screen
-   */
-  if (!isPremium) {
-    return (
-      <section
-        id="vault"
-        className={`py-20 ${
-          theme === 'dark'
-            ? 'bg-slate-950'
-            : 'bg-white'
-        }`}
-      >
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div
-            className={`relative overflow-hidden rounded-3xl border p-10 sm:p-16 text-center ${
-              theme === 'dark'
-                ? 'bg-slate-900 border-slate-800'
-                : 'bg-slate-50 border-slate-200'
-            }`}
-          >
-            <div className="absolute inset-0 bg-gradient-to-br from-violet-500/10 via-transparent to-cyan-500/10 pointer-events-none" />
-
-            <div className="relative">
-              <div className="mx-auto mb-6 w-16 h-16 rounded-2xl bg-violet-500/10 flex items-center justify-center">
-                <Lock
-                  size={30}
-                  className="text-violet-500"
-                />
-              </div>
-
-              <div className="flex items-center justify-center gap-2 mb-3">
-                <Crown
-                  size={20}
-                  className="text-yellow-400"
-                />
-
-                <span className="text-sm font-semibold text-violet-500 uppercase tracking-wider">
-                  Premium
-                </span>
-              </div>
-
-              <h2
-                className={`text-3xl sm:text-4xl font-bold mb-4 ${
-                  theme === 'dark'
-                    ? 'text-white'
-                    : 'text-slate-900'
-                }`}
-              >
-                Trip Vault
-              </h2>
-
-              <p
-                className={`max-w-xl mx-auto text-base sm:text-lg mb-8 ${
-                  theme === 'dark'
-                    ? 'text-slate-400'
-                    : 'text-slate-600'
-                }`}
-              >
-                Save your places, bookings, tickets,
-                and travel notes in one secure place.
-              </p>
-
-              <button
-                type="button"
-                onClick={() => {
-                  window.dispatchEvent(
-                    new CustomEvent(
-                      'wanderwise:open-premium'
-                    )
-                  );
-                }}
-                className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-violet-600 text-white font-semibold hover:bg-violet-700 transition"
-              >
-                <Crown size={18} />
-                Unlock Premium
-              </button>
-            </div>
-          </div>
-        </div>
-      </section>
-    );
-  }
-
   return (
     <section
       id="vault"
@@ -476,6 +234,7 @@ export function TripVault() {
       }`}
     >
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
           <div>
@@ -494,22 +253,15 @@ export function TripVault() {
               </div>
 
               <div>
-                <div className="flex items-center gap-2">
-                  <h2
-                    className={`text-2xl sm:text-3xl font-bold ${
-                      theme === 'dark'
-                        ? 'text-white'
-                        : 'text-slate-900'
-                    }`}
-                  >
-                    Trip Vault
-                  </h2>
-
-                  <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-violet-500/10 text-violet-500 text-xs font-semibold">
-                    <Crown size={12} />
-                    Premium
-                  </span>
-                </div>
+                <h2
+                  className={`text-2xl sm:text-3xl font-bold ${
+                    theme === 'dark'
+                      ? 'text-white'
+                      : 'text-slate-900'
+                  }`}
+                >
+                  Trip Vault
+                </h2>
 
                 <p
                   className={`text-sm ${
@@ -528,7 +280,7 @@ export function TripVault() {
           <button
             type="button"
             onClick={() => setShowForm(true)}
-            disabled={!user || !isPremium}
+            disabled={!user}
             className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-violet-600 text-white font-semibold hover:bg-violet-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Plus size={18} />
@@ -556,9 +308,7 @@ export function TripVault() {
             <button
               key={category.id}
               type="button"
-              onClick={() =>
-                setFilter(category.id)
-              }
+              onClick={() => setFilter(category.id)}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
                 filter === category.id
                   ? 'bg-violet-600 text-white'
@@ -620,8 +370,7 @@ export function TripVault() {
                   : 'text-slate-500'
               }`}
             >
-              Add your first place, booking, ticket,
-              or note.
+              Add your first place, booking, ticket, or note.
             </p>
           </div>
         )}
@@ -649,15 +398,11 @@ export function TripVault() {
                     <div className="flex items-start gap-3 min-w-0">
                       <div
                         className="p-3 rounded-xl shrink-0"
-                        style={{
-                          backgroundColor: config.bg,
-                        }}
+                        style={{ backgroundColor: config.bg }}
                       >
                         <Icon
                           size={20}
-                          style={{
-                            color: config.color,
-                          }}
+                          style={{ color: config.color }}
                         />
                       </div>
 
@@ -674,9 +419,7 @@ export function TripVault() {
 
                         <p
                           className="text-xs mt-1"
-                          style={{
-                            color: config.color,
-                          }}
+                          style={{ color: config.color }}
                         >
                           {t(config.labelKey)}
                         </p>
@@ -685,9 +428,7 @@ export function TripVault() {
 
                     <button
                       type="button"
-                      onClick={() =>
-                        handleDelete(place.id)
-                      }
+                      onClick={() => handleDelete(place.id)}
                       className={`p-2 rounded-lg transition ${
                         theme === 'dark'
                           ? 'text-slate-500 hover:text-red-400 hover:bg-slate-800'
@@ -707,11 +448,7 @@ export function TripVault() {
                           : 'text-slate-600'
                       }`}
                     >
-                      <MapPin
-                        size={16}
-                        className="shrink-0 mt-0.5"
-                      />
-
+                      <MapPin size={16} className="shrink-0 mt-0.5" />
                       <span>{place.address}</span>
                     </div>
                   )}
@@ -724,9 +461,7 @@ export function TripVault() {
                           : 'text-slate-600'
                       }`}
                     >
-                      <span className="font-medium">
-                        Reference:
-                      </span>{' '}
+                      <span className="font-medium">Reference:</span>{' '}
                       {place.booking_ref}
                     </div>
                   )}
@@ -751,9 +486,7 @@ export function TripVault() {
                     }`}
                   >
                     {place.created_at
-                      ? new Date(
-                          place.created_at
-                        ).toLocaleString()
+                      ? new Date(place.created_at).toLocaleString()
                       : ''}
                   </div>
                 </div>
@@ -786,9 +519,7 @@ export function TripVault() {
 
               <button
                 type="button"
-                onClick={() =>
-                  setShowForm(false)
-                }
+                onClick={() => setShowForm(false)}
                 className={`p-2 rounded-lg ${
                   theme === 'dark'
                     ? 'text-slate-400 hover:bg-slate-800'
@@ -844,8 +575,7 @@ export function TripVault() {
                   onChange={(event) =>
                     setForm((prev) => ({
                       ...prev,
-                      category:
-                        event.target.value as Category,
+                      category: event.target.value as Category,
                     }))
                   }
                   className={`w-full px-4 py-3 rounded-xl border outline-none focus:ring-2 focus:ring-violet-500 ${
@@ -855,10 +585,7 @@ export function TripVault() {
                   }`}
                 >
                   {categories.map((category) => (
-                    <option
-                      key={category.id}
-                      value={category.id}
-                    >
+                    <option key={category.id} value={category.id}>
                       {t(category.labelKey)}
                     </option>
                   ))}
@@ -909,8 +636,7 @@ export function TripVault() {
                   onChange={(event) =>
                     setForm((prev) => ({
                       ...prev,
-                      booking_ref:
-                        event.target.value,
+                      booking_ref: event.target.value,
                     }))
                   }
                   placeholder="Optional"
@@ -954,9 +680,7 @@ export function TripVault() {
               <div className="flex gap-3 pt-2">
                 <button
                   type="button"
-                  onClick={() =>
-                    setShowForm(false)
-                  }
+                  onClick={() => setShowForm(false)}
                   className={`flex-1 px-4 py-3 rounded-xl font-semibold ${
                     theme === 'dark'
                       ? 'bg-slate-800 text-slate-200 hover:bg-slate-700'
@@ -969,11 +693,7 @@ export function TripVault() {
                 <button
                   type="button"
                   onClick={handleAdd}
-                  disabled={
-                    !form.name.trim() ||
-                    !user ||
-                    !isPremium
-                  }
+                  disabled={!form.name.trim() || !user}
                   className="flex-1 px-4 py-3 rounded-xl bg-violet-600 text-white font-semibold hover:bg-violet-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Save

@@ -1308,7 +1308,7 @@ export function AuthModal({
                 <div className="flex justify-center overflow-hidden rounded-xl border border-slate-700 bg-slate-800/60 p-3">
                   <ReCAPTCHA
                     ref={captchaRef}
-                    sitekey="6Ld_iMItAAAAAM7Ug3gE0zOKIEXmziodDldR3nHD"
+                    sitekey="6LdRTcQtAAAAAJ1189oaiSCtrNly3FTvz2O-9ppV"
                     onChange={(token) => {
                       setCaptchaToken(token);
                       setError('');

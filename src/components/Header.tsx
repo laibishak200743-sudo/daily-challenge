@@ -1,5 +1,4 @@
-import { useEffect, useState } from 'react';
-
+import { useState } from 'react';
 import {
   Sparkles,
   Moon,
@@ -8,19 +7,14 @@ import {
   LogOut,
   Menu,
   X,
-  Crown,
   Languages,
   Plane,
   UserCircle,
-  ShieldCheck,
 } from 'lucide-react';
-
-import { doc, getDoc } from 'firebase/firestore';
 
 import { useTheme } from '@/contexts/ThemeContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { db } from '@/lib/firebase';
 
 interface HeaderProps {
   activeTab: string;
@@ -29,35 +23,16 @@ interface HeaderProps {
   onOpenAuth?: () => void;
 }
 
-type UserPlan = 'free' | 'monthly' | 'annual' | 'lifetime';
-
 const SUPPORTED_LANGS = [
-  {
-    code: 'en',
-    label: 'English',
-    short: 'US',
-  },
-  {
-    code: 'ar',
-    label: 'العربية',
-    short: 'DZ',
-  },
-  {
-    code: 'fr',
-    label: 'Français',
-    short: 'FR',
-  },
-  {
-    code: 'es',
-    label: 'Español',
-    short: 'ES',
-  },
+  { code: 'en', label: 'English', short: 'US' },
+  { code: 'ar', label: 'العربية', short: 'DZ' },
+  { code: 'fr', label: 'Français', short: 'FR' },
+  { code: 'es', label: 'Español', short: 'ES' },
 ];
 
 export function Header({
   activeTab,
   setActiveTab,
-  onOpenPricing,
   onOpenAuth,
 }: HeaderProps) {
   const { theme, toggleTheme } = useTheme();
@@ -68,74 +43,8 @@ export function Header({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [logoutLoading, setLogoutLoading] = useState(false);
 
-  const [userPlan, setUserPlan] = useState<UserPlan>('free');
-  const [planLoading, setPlanLoading] = useState(false);
-
   const isLight = theme === 'light';
   const isRtl = language === 'ar';
-
-  /*
-   * تحميل خطة المستخدم من Firestore
-   *
-   * users/{uid}
-   * {
-   *   plan: "free" | "monthly" | "annual" | "lifetime"
-   * }
-   */
-  useEffect(() => {
-    let cancelled = false;
-
-    const loadUserPlan = async () => {
-      if (!user) {
-        setUserPlan('free');
-        return;
-      }
-
-      try {
-        setPlanLoading(true);
-
-        const userRef = doc(db, 'users', user.uid);
-        const snapshot = await getDoc(userRef);
-
-        if (cancelled) return;
-
-        if (snapshot.exists()) {
-          const data = snapshot.data();
-          const plan = data.plan;
-
-          if (
-            plan === 'monthly' ||
-            plan === 'annual' ||
-            plan === 'lifetime'
-          ) {
-            setUserPlan(plan);
-          } else {
-            setUserPlan('free');
-          }
-        } else {
-          setUserPlan('free');
-        }
-      } catch (error) {
-        console.error('Error loading user plan:', error);
-
-        if (!cancelled) {
-          setUserPlan('free');
-        }
-      } finally {
-        if (!cancelled) {
-          setPlanLoading(false);
-        }
-      }
-    };
-
-    loadUserPlan();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [user]);
-
-  const isPremium = userPlan !== 'free';
 
   const navItems = [
     {
@@ -195,26 +104,13 @@ export function Header({
     setMobileMenuOpen(false);
   };
 
-  const handlePricing = () => {
-    if (onOpenPricing) {
-      onOpenPricing();
-    }
-
-    setMobileMenuOpen(false);
-  };
-
   const handleAuth = () => {
-    if (onOpenAuth) {
-      onOpenAuth();
-    }
-
+    onOpenAuth?.();
     setMobileMenuOpen(false);
   };
 
   const handleLogout = async () => {
-    if (logoutLoading) {
-      return;
-    }
+    if (logoutLoading) return;
 
     try {
       setLogoutLoading(true);
@@ -231,38 +127,6 @@ export function Header({
     user?.displayName?.trim() ||
     user?.email?.split('@')[0] ||
     (isRtl ? 'المستخدم' : 'User');
-
-  const getPlanLabel = () => {
-    if (planLoading) {
-      return '...';
-    }
-
-    if (isPremium) {
-      if (language === 'ar') return 'Premium';
-      if (language === 'fr') return 'Premium';
-      if (language === 'es') return 'Premium';
-      return 'Premium';
-    }
-
-    if (language === 'ar') return 'مجاني';
-    if (language === 'fr') return 'Gratuit';
-    if (language === 'es') return 'Gratis';
-    return 'Free';
-  };
-
-  const getPremiumButtonLabel = () => {
-    if (isPremium) {
-      if (language === 'ar') return 'Premium';
-      if (language === 'fr') return 'Premium';
-      if (language === 'es') return 'Premium';
-      return 'Premium';
-    }
-
-    if (language === 'ar') return 'الترقية إلى Premium';
-    if (language === 'fr') return 'Passer à Premium';
-    if (language === 'es') return 'Obtener Premium';
-    return 'Go Premium';
-  };
 
   return (
     <header
@@ -349,9 +213,7 @@ export function Header({
                   return (
                     <button
                       key={lang.code}
-                      onClick={() =>
-                        handleLanguageChange(lang.code)
-                      }
+                      onClick={() => handleLanguageChange(lang.code)}
                       className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-all ${
                         selected
                           ? 'bg-cyan-500/10 text-cyan-500'
@@ -361,7 +223,6 @@ export function Header({
                       }`}
                     >
                       <span>{lang.label}</span>
-
                       <span className="text-[10px] opacity-70">
                         {lang.short}
                       </span>
@@ -389,29 +250,9 @@ export function Header({
             )}
           </button>
 
-          {/* PREMIUM */}
-          <button
-            onClick={handlePricing}
-            className={`ml-1 flex items-center gap-1.5 px-4 py-2.5 font-bold rounded-xl shadow-lg transition-all text-xs ${
-              isPremium
-                ? 'bg-gradient-to-r from-amber-500 to-yellow-400 text-white shadow-amber-500/20 hover:opacity-90'
-                : 'bg-gradient-to-r from-cyan-500 to-cyan-400 text-white shadow-cyan-500/20 hover:opacity-90'
-            }`}
-          >
-            {isPremium ? (
-              <ShieldCheck className="w-4 h-4" />
-            ) : (
-              <Crown className="w-4 h-4" />
-            )}
-
-            <span>{getPremiumButtonLabel()}</span>
-          </button>
-
           {/* AUTH */}
           {user ? (
             <div className="flex items-center gap-2">
-
-              {/* USER + PLAN */}
               <div
                 className={`flex items-center gap-2 px-3 py-2 rounded-xl border ${
                   isLight
@@ -423,29 +264,13 @@ export function Header({
                 <UserCircle className="w-5 h-5 text-cyan-500" />
 
                 <div className="max-w-[150px]">
-                  <p className="truncate text-xs font-bold">
-                    {userName}
-                  </p>
-
+                  <p className="truncate text-xs font-bold">{userName}</p>
                   <p className="truncate text-[10px] opacity-60">
                     {user.email}
                   </p>
                 </div>
-
-                <span
-                  className={`ml-1 px-2 py-1 rounded-lg text-[9px] font-extrabold whitespace-nowrap ${
-                    isPremium
-                      ? 'bg-amber-500/15 text-amber-500'
-                      : isLight
-                        ? 'bg-slate-200 text-slate-600'
-                        : 'bg-slate-700 text-slate-300'
-                  }`}
-                >
-                  {getPlanLabel()}
-                </span>
               </div>
 
-              {/* LOGOUT */}
               <button
                 onClick={handleLogout}
                 disabled={logoutLoading}
@@ -496,13 +321,10 @@ export function Header({
 
         {/* MOBILE */}
         <div className="flex lg:hidden items-center gap-2">
-
           <button
             onClick={toggleTheme}
             className={`p-2.5 rounded-xl border ${
-              isLight
-                ? 'border-slate-200'
-                : 'border-slate-800'
+              isLight ? 'border-slate-200' : 'border-slate-800'
             }`}
           >
             {isLight ? (
@@ -513,9 +335,7 @@ export function Header({
           </button>
 
           <button
-            onClick={() =>
-              setMobileMenuOpen(!mobileMenuOpen)
-            }
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             className="p-2"
           >
             {mobileMenuOpen ? (
@@ -539,9 +359,7 @@ export function Header({
           {navItems.map((item) => (
             <button
               key={item.id}
-              onClick={() =>
-                handleNavigation(item.id)
-              }
+              onClick={() => handleNavigation(item.id)}
               className={`block w-full text-start px-4 py-3 rounded-xl text-sm font-semibold ${
                 activeTab === item.id
                   ? 'bg-cyan-500/10 text-cyan-500'
@@ -568,9 +386,7 @@ export function Header({
               {SUPPORTED_LANGS.map((lang) => (
                 <button
                   key={lang.code}
-                  onClick={() =>
-                    handleLanguageChange(lang.code)
-                  }
+                  onClick={() => handleLanguageChange(lang.code)}
                   className={`px-3 py-2.5 rounded-xl text-xs ${
                     language === lang.code
                       ? 'bg-cyan-500/10 text-cyan-500'
@@ -584,65 +400,6 @@ export function Header({
               ))}
             </div>
           </div>
-
-          {/* MOBILE PLAN STATUS */}
-          {user && (
-            <div
-              className={`flex items-center justify-between px-4 py-3 rounded-xl border ${
-                isLight
-                  ? 'bg-slate-50 border-slate-200'
-                  : 'bg-slate-900 border-slate-800'
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                {isPremium ? (
-                  <ShieldCheck className="w-5 h-5 text-amber-500" />
-                ) : (
-                  <UserCircle className="w-5 h-5 text-cyan-500" />
-                )}
-
-                <div>
-                  <p className="text-sm font-bold">
-                    {userName}
-                  </p>
-
-                  <p className="text-xs opacity-60">
-                    {user.email}
-                  </p>
-                </div>
-              </div>
-
-              <span
-                className={`px-2.5 py-1.5 rounded-lg text-[10px] font-extrabold ${
-                  isPremium
-                    ? 'bg-amber-500/15 text-amber-500'
-                    : isLight
-                      ? 'bg-slate-200 text-slate-600'
-                      : 'bg-slate-800 text-slate-300'
-                }`}
-              >
-                {getPlanLabel()}
-              </span>
-            </div>
-          )}
-
-          {/* PREMIUM */}
-          <button
-            onClick={handlePricing}
-            className={`w-full flex items-center justify-center gap-2 px-4 py-3 text-white font-bold rounded-xl ${
-              isPremium
-                ? 'bg-gradient-to-r from-amber-500 to-yellow-400'
-                : 'bg-gradient-to-r from-cyan-500 to-cyan-400'
-            }`}
-          >
-            {isPremium ? (
-              <ShieldCheck className="w-5 h-5" />
-            ) : (
-              <Crown className="w-5 h-5" />
-            )}
-
-            <span>{getPremiumButtonLabel()}</span>
-          </button>
 
           {/* MOBILE AUTH */}
           {user ? (

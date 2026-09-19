@@ -15,7 +15,6 @@ import {
 } from 'google-auth-library';
 
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
-
 const stripeWebhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
 const firebaseProjectId =
@@ -24,15 +23,11 @@ const firebaseProjectId =
   'wanderwisepro';
 
 if (!stripeSecretKey) {
-  throw new Error(
-    'Missing STRIPE_SECRET_KEY environment variable.'
-  );
+  throw new Error('Missing STRIPE_SECRET_KEY environment variable.');
 }
 
 if (!stripeWebhookSecret) {
-  throw new Error(
-    'Missing STRIPE_WEBHOOK_SECRET environment variable.'
-  );
+  throw new Error('Missing STRIPE_WEBHOOK_SECRET environment variable.');
 }
 
 const stripe = new Stripe(stripeSecretKey);
@@ -60,9 +55,15 @@ function getPlanFromClientReferenceId(
     return null;
   }
 
-  const parts = clientReferenceId.split('_');
+  const separatorIndex =
+    clientReferenceId.lastIndexOf('_');
 
-  const possiblePlan = parts[parts.length - 1];
+  if (separatorIndex <= 0) {
+    return null;
+  }
+
+  const possiblePlan =
+    clientReferenceId.slice(separatorIndex + 1);
 
   if (
     possiblePlan === 'monthly' ||
@@ -166,17 +167,20 @@ function createFirebaseCredential(
   return credential;
 }
 
-async function createFirebaseApp(
-  request: Request
-) {
+async function createFirebaseApp() {
+  /*
+   * IMPORTANT:
+   * The Stripe webhook request does NOT contain a Vercel OIDC token.
+   *
+   * Vercel provides the OIDC token to the running Vercel function
+   * through the VERCEL_OIDC_TOKEN environment variable.
+   */
   const vercelOidcToken =
-    request.headers.get(
-      'x-vercel-oidc-token'
-    );
+    process.env.VERCEL_OIDC_TOKEN;
 
   if (!vercelOidcToken) {
     throw new Error(
-      'Missing Vercel OIDC token. Make sure Secure Backend Access with OIDC Federation is enabled in Vercel.'
+      'Missing VERCEL_OIDC_TOKEN environment variable. Make sure Vercel OIDC Federation is enabled for this project.'
     );
   }
 
@@ -314,9 +318,7 @@ export async function POST(
       }
 
       firebaseApp =
-        await createFirebaseApp(
-          request
-        );
+        await createFirebaseApp();
 
       const db =
         getFirestore(firebaseApp);
@@ -325,26 +327,10 @@ export async function POST(
         .collection('users')
         .doc(userId);
 
-      const userSnapshot =
-        await userRef.get();
-
-      if (!userSnapshot.exists) {
-        console.error(
-          'Firebase user document not found:',
-          userId
-        );
-
-        return Response.json(
-          {
-            error:
-              'Firebase user document not found.',
-          },
-          {
-            status: 404,
-          }
-        );
-      }
-
+      /*
+       * Do not require the user document to already exist.
+       * If it does not exist, Firestore will create it.
+       */
       await userRef.set(
         {
           plan,

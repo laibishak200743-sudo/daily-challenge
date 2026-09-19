@@ -224,18 +224,19 @@ export function TripVault() {
     { id: 'place', labelKey: 'vault.place' },
   ];
 
+  const itemCount =
+    places.length === 1
+      ? `${places.length} ${t('vault.savedItem')}`
+      : `${places.length} ${t('vault.savedItems')}`;
+
   return (
     <section
       id="vault"
       className={`py-20 ${
-        theme === 'dark'
-          ? 'bg-slate-950'
-          : 'bg-white'
+        theme === 'dark' ? 'bg-slate-950' : 'bg-white'
       }`}
     >
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-
-        {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
           <div>
             <div className="flex items-center gap-3">
@@ -246,10 +247,7 @@ export function TripVault() {
                     : 'bg-slate-100'
                 }`}
               >
-                <Bookmark
-                  size={24}
-                  className="text-violet-500"
-                />
+                <Bookmark size={24} className="text-violet-500" />
               </div>
 
               <div>
@@ -260,7 +258,7 @@ export function TripVault() {
                       : 'text-slate-900'
                   }`}
                 >
-                  Trip Vault
+                  {t('section.vault.title')}
                 </h2>
 
                 <p
@@ -270,8 +268,7 @@ export function TripVault() {
                       : 'text-slate-500'
                   }`}
                 >
-                  {places.length} saved item
-                  {places.length === 1 ? '' : 's'}
+                  {itemCount}
                 </p>
               </div>
             </div>
@@ -284,11 +281,10 @@ export function TripVault() {
             className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-violet-600 text-white font-semibold hover:bg-violet-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Plus size={18} />
-            Add
+            {t('vault.add')}
           </button>
         </div>
 
-        {/* Filters */}
         <div className="flex flex-wrap gap-2 mb-8">
           <button
             type="button"
@@ -301,7 +297,7 @@ export function TripVault() {
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
             }`}
           >
-            All
+            {t('vault.all')}
           </button>
 
           {categories.map((category) => (
@@ -322,7 +318,6 @@ export function TripVault() {
           ))}
         </div>
 
-        {/* Loading */}
         {loading && (
           <div
             className={`rounded-2xl p-10 text-center border ${
@@ -331,11 +326,10 @@ export function TripVault() {
                 : 'bg-slate-50 border-slate-200 text-slate-500'
             }`}
           >
-            Loading...
+            {t('vault.loading')}
           </div>
         )}
 
-        {/* Empty */}
         {!loading && filteredPlaces.length === 0 && (
           <div
             className={`rounded-2xl p-10 text-center border ${
@@ -360,7 +354,7 @@ export function TripVault() {
                   : 'text-slate-900'
               }`}
             >
-              No saved items
+              {t('vault.emptyTitle')}
             </h3>
 
             <p
@@ -370,12 +364,11 @@ export function TripVault() {
                   : 'text-slate-500'
               }`}
             >
-              Add your first place, booking, ticket, or note.
+              {t('vault.emptyDescription')}
             </p>
           </div>
         )}
 
-        {/* Places */}
         {!loading && filteredPlaces.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {filteredPlaces.map((place) => {
@@ -434,7 +427,7 @@ export function TripVault() {
                           ? 'text-slate-500 hover:text-red-400 hover:bg-slate-800'
                           : 'text-slate-400 hover:text-red-500 hover:bg-slate-100'
                       }`}
-                      aria-label="Delete"
+                      aria-label={t('vault.delete')}
                     >
                       <Trash2 size={18} />
                     </button>
@@ -461,7 +454,9 @@ export function TripVault() {
                           : 'text-slate-600'
                       }`}
                     >
-                      <span className="font-medium">Reference:</span>{' '}
+                      <span className="font-medium">
+                        {t('vault.bookingRef')}:
+                      </span>{' '}
                       {place.booking_ref}
                     </div>
                   )}
@@ -496,14 +491,11 @@ export function TripVault() {
         )}
       </div>
 
-      {/* Add Form */}
       {showForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60">
           <div
             className={`w-full max-w-lg rounded-2xl p-6 shadow-2xl ${
-              theme === 'dark'
-                ? 'bg-slate-900'
-                : 'bg-white'
+              theme === 'dark' ? 'bg-slate-900' : 'bg-white'
             }`}
           >
             <div className="flex items-center justify-between mb-6">
@@ -514,7 +506,7 @@ export function TripVault() {
                     : 'text-slate-900'
                 }`}
               >
-                Add to Trip Vault
+                {t('vault.addToVault')}
               </h3>
 
               <button
@@ -525,6 +517,7 @@ export function TripVault() {
                     ? 'text-slate-400 hover:bg-slate-800'
                     : 'text-slate-500 hover:bg-slate-100'
                 }`}
+                aria-label={t('common.cancel')}
               >
                 <X size={20} />
               </button>
@@ -539,7 +532,7 @@ export function TripVault() {
                       : 'text-slate-700'
                   }`}
                 >
-                  Name
+                  {t('vault.name')}
                 </label>
 
                 <input
@@ -550,7 +543,7 @@ export function TripVault() {
                       name: event.target.value,
                     }))
                   }
-                  placeholder="e.g. Hotel reservation"
+                  placeholder={t('vault.placeholder')}
                   className={`w-full px-4 py-3 rounded-xl border outline-none focus:ring-2 focus:ring-violet-500 ${
                     theme === 'dark'
                       ? 'bg-slate-950 border-slate-700 text-white placeholder:text-slate-600'
@@ -567,7 +560,7 @@ export function TripVault() {
                       : 'text-slate-700'
                   }`}
                 >
-                  Category
+                  {t('vault.category')}
                 </label>
 
                 <select
@@ -600,7 +593,7 @@ export function TripVault() {
                       : 'text-slate-700'
                   }`}
                 >
-                  Address
+                  {t('vault.address')}
                 </label>
 
                 <input
@@ -611,7 +604,7 @@ export function TripVault() {
                       address: event.target.value,
                     }))
                   }
-                  placeholder="Optional"
+                  placeholder={t('vault.optional')}
                   className={`w-full px-4 py-3 rounded-xl border outline-none focus:ring-2 focus:ring-violet-500 ${
                     theme === 'dark'
                       ? 'bg-slate-950 border-slate-700 text-white placeholder:text-slate-600'
@@ -628,7 +621,7 @@ export function TripVault() {
                       : 'text-slate-700'
                   }`}
                 >
-                  Booking / Ticket Reference
+                  {t('vault.bookingRef')}
                 </label>
 
                 <input
@@ -639,7 +632,7 @@ export function TripVault() {
                       booking_ref: event.target.value,
                     }))
                   }
-                  placeholder="Optional"
+                  placeholder={t('vault.optional')}
                   className={`w-full px-4 py-3 rounded-xl border outline-none focus:ring-2 focus:ring-violet-500 ${
                     theme === 'dark'
                       ? 'bg-slate-950 border-slate-700 text-white placeholder:text-slate-600'
@@ -656,7 +649,7 @@ export function TripVault() {
                       : 'text-slate-700'
                   }`}
                 >
-                  Notes
+                  {t('vault.notes')}
                 </label>
 
                 <textarea
@@ -667,7 +660,7 @@ export function TripVault() {
                       notes: event.target.value,
                     }))
                   }
-                  placeholder="Optional"
+                  placeholder={t('vault.optional')}
                   rows={4}
                   className={`w-full px-4 py-3 rounded-xl border outline-none resize-none focus:ring-2 focus:ring-violet-500 ${
                     theme === 'dark'
@@ -687,7 +680,7 @@ export function TripVault() {
                       : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                   }`}
                 >
-                  Cancel
+                  {t('common.cancel')}
                 </button>
 
                 <button
@@ -696,7 +689,7 @@ export function TripVault() {
                   disabled={!form.name.trim() || !user}
                   className="flex-1 px-4 py-3 rounded-xl bg-violet-600 text-white font-semibold hover:bg-violet-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Save
+                  {t('common.save')}
                 </button>
               </div>
             </div>

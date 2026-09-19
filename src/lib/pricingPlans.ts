@@ -1,0 +1,67 @@
+import type { PricingPlan } from '@/types';
+
+export const pricingPlans: PricingPlan[] = [
+  {
+    id: 'trial',
+    nameKey: 'plan.trial.name',
+    price: '$0',
+    periodKey: 'plan.trial.period',
+    featureKeys: [
+      'plan.trial.f1',
+      'plan.trial.f2',
+      'plan.trial.f3',
+      'plan.trial.f4',
+      'plan.trial.f5',
+    ],
+    highlighted: false,
+    icon: 'Sparkles',
+  },
+  {
+    id: 'monthly',
+    nameKey: 'plan.monthly.name',
+    price: '$9.99',
+    periodKey: 'plan.monthly.period',
+    featureKeys: [
+      'plan.monthly.f1',
+      'plan.monthly.f2',
+      'plan.monthly.f3',
+      'plan.monthly.f4',
+      'plan.monthly.f5',
+      'plan.monthly.f6',
+    ],
+    highlighted: true,
+    icon: 'Zap',
+  },
+  {
+    id: 'yearly',
+    nameKey: 'plan.yearly.name',
+    price: '$79.99',
+    periodKey: 'plan.yearly.period',
+    featureKeys: [
+      'plan.yearly.f1',
+      'plan.yearly.f2',
+      'plan.yearly.f3',
+      'plan.yearly.f4',
+      'plan.yearly.f5',
+      'plan.yearly.f6',
+    ],
+    highlighted: false,
+    icon: 'Crown',
+  },
+  {
+    id: 'lifetime',
+    nameKey: 'plan.lifetime.name',
+    price: '$199.99',
+    periodKey: 'plan.lifetime.period',
+    featureKeys: [
+      'plan.lifetime.f1',
+      'plan.lifetime.f2',
+      'plan.lifetime.f3',
+      'plan.lifetime.f4',
+      'plan.lifetime.f5',
+      'plan.lifetime.f6',
+    ],
+    highlighted: false,
+    icon: 'Gem',
+  },
+];

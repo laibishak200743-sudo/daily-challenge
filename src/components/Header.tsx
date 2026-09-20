@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import {
-  Sparkles,
   Moon,
   Sun,
   LogIn,
@@ -144,11 +143,7 @@ export function Header({
           className="flex items-center gap-3 cursor-pointer shrink-0"
           onClick={() => handleNavigation('discover')}
         >
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center text-white shadow-lg shadow-cyan-500/30">
-            <Sparkles className="w-5 h-5" />
-          </div>
-
-          <Plane className="w-5 h-5 text-cyan-500 shrink-0" />
+          <Plane className="w-6 h-6 text-cyan-500 shrink-0" />
 
           <span className="text-lg font-extrabold tracking-tight bg-gradient-to-r from-cyan-500 to-blue-600 bg-clip-text text-transparent">
             WanderWise Pro

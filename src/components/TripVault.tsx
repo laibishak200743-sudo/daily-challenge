@@ -19,6 +19,7 @@ import {
   doc,
   query,
   where,
+  serverTimestamp,
 } from 'firebase/firestore';
 
 import { useTheme } from '@/contexts/ThemeContext';
@@ -63,8 +64,10 @@ export function TripVault() {
 
   const [places, setPlaces] = useState<SavedPlace[]>([]);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [filter, setFilter] = useState<Category | null>(null);
+  const [errorMessage, setErrorMessage] = useState('');
 
   const [form, setForm] = useState({
     name: '',
@@ -82,6 +85,7 @@ export function TripVault() {
     }
 
     setLoading(true);
+    setErrorMessage('');
 
     try {
       const placesQuery = query(
@@ -96,6 +100,17 @@ export function TripVault() {
         .map((item) => {
           const data = item.data();
 
+          let createdAt = '';
+
+          if (typeof data.created_at === 'string') {
+            createdAt = data.created_at;
+          } else if (
+            data.created_at &&
+            typeof data.created_at.toDate === 'function'
+          ) {
+            createdAt = data.created_at.toDate().toISOString();
+          }
+
           return {
             id: item.id,
             trip_id: data.trip_id ?? null,
@@ -107,7 +122,7 @@ export function TripVault() {
             booking_ref: data.booking_ref ?? null,
             notes: data.notes ?? null,
             image_url: data.image_url ?? null,
-            created_at: data.created_at ?? '',
+            created_at: createdAt,
           };
         });
 
@@ -116,8 +131,21 @@ export function TripVault() {
       );
 
       setPlaces(loadedPlaces);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error loading places:', error);
+
+      const code = error?.code ?? '';
+
+      if (code === 'permission-denied') {
+        setErrorMessage(
+          'Firestore permission denied. Please check your Firestore Security Rules.'
+        );
+      } else {
+        setErrorMessage(
+          error?.message || 'Could not load your saved trips.'
+        );
+      }
+
       setPlaces([]);
     } finally {
       setLoading(false);
@@ -129,13 +157,29 @@ export function TripVault() {
   }, [loadPlaces]);
 
   const handleAdd = async () => {
-    if (!user || !form.name.trim()) return;
+    if (!user) {
+      setErrorMessage('Please sign in before saving an item.');
+      return;
+    }
+
+    const trimmedName = form.name.trim();
+
+    if (!trimmedName) {
+      return;
+    }
+
+    if (saving) {
+      return;
+    }
+
+    setSaving(true);
+    setErrorMessage('');
 
     try {
       const placeData = {
         userId: user.uid,
         trip_id: null,
-        name: form.name.trim(),
+        name: trimmedName,
         category: form.category,
         lat: null,
         lng: null,
@@ -143,7 +187,12 @@ export function TripVault() {
         booking_ref: form.booking_ref.trim() || null,
         notes: form.notes.trim() || null,
         image_url: null,
+
+        // Keep an ISO date for compatibility with existing documents.
         created_at: new Date().toISOString(),
+
+        // Also store a real Firestore timestamp for reliable ordering.
+        createdAt: serverTimestamp(),
       };
 
       const docRef = await addDoc(
@@ -176,8 +225,27 @@ export function TripVault() {
       });
 
       setShowForm(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error adding place:', error);
+
+      const code = error?.code ?? '';
+
+      if (code === 'permission-denied') {
+        setErrorMessage(
+          'Firebase permission denied. Your Firestore Security Rules are blocking the save.'
+        );
+      } else if (code === 'unauthenticated') {
+        setErrorMessage(
+          'Your session has expired. Please sign in again.'
+        );
+      } else {
+        setErrorMessage(
+          error?.message ||
+            'Could not save this item. Please try again.'
+        );
+      }
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -276,7 +344,10 @@ export function TripVault() {
 
           <button
             type="button"
-            onClick={() => setShowForm(true)}
+            onClick={() => {
+              setErrorMessage('');
+              setShowForm(true);
+            }}
             disabled={!user}
             className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-violet-600 text-white font-semibold hover:bg-violet-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
           >
@@ -284,6 +355,12 @@ export function TripVault() {
             {t('vault.add')}
           </button>
         </div>
+
+        {errorMessage && (
+          <div className="mb-6 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-500">
+            {errorMessage}
+          </div>
+        )}
 
         <div className="flex flex-wrap gap-2 mb-8">
           <button
@@ -674,7 +751,8 @@ export function TripVault() {
                 <button
                   type="button"
                   onClick={() => setShowForm(false)}
-                  className={`flex-1 px-4 py-3 rounded-xl font-semibold ${
+                  disabled={saving}
+                  className={`flex-1 px-4 py-3 rounded-xl font-semibold disabled:opacity-50 ${
                     theme === 'dark'
                       ? 'bg-slate-800 text-slate-200 hover:bg-slate-700'
                       : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
@@ -686,10 +764,10 @@ export function TripVault() {
                 <button
                   type="button"
                   onClick={handleAdd}
-                  disabled={!form.name.trim() || !user}
+                  disabled={!form.name.trim() || !user || saving}
                   className="flex-1 px-4 py-3 rounded-xl bg-violet-600 text-white font-semibold hover:bg-violet-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {t('common.save')}
+                  {saving ? 'Saving...' : t('common.save')}
                 </button>
               </div>
             </div>
